@@ -17,6 +17,10 @@ curl http://localhost:25500/version
 
 ## 在Railway.app上搭建
 
+Railway是一家新开的Docker服务托管服务商，每个月有免费的5美元额度。跑一些轻容器是没问题的。
+
+直接点击下面的按钮，等待构建完成即可使用
+
 [![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template/IMPRc1?referralCode=ZnTvJC)
 
 ## 配置
