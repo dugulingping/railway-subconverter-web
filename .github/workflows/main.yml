@@ -1,76 +1,52 @@
-name: Update subconverter
-env:
-  # 提交说明的内容
-  message: 'Update subconverter'
-
-on:
-  # 定时任务，格式：minute(0 - 59) hour(0 - 23) day_of_the month (1 - 31) month(1 - 12 or JAN-DEC) day of the week (0 - 6 or SUN-SAT)
-  # 以下示例为每周日0点0分运行
-  # 删除以下行首的#号启用定时任务
-  # schedule:
-  #   - cron: 0 0 * * SUN
-  # 点击star运行
-  # 删除以下行首的#号启用
-  #watch:
-  #  types: [started]
-  workflow_dispatch:
-    inputs:
-      message:
-        description: 'commit message'
-        required: false
-        default: 'Update subconverter'
+name: Publish Docker Image
+on: [push]
 
 concurrency: 
-  group: subconverter
-  # 自动取消其他运行中的workflow
-  cancel-in-progress: true   
+  group: ${{ github.ref }}-${{ github.workflow }}
+  cancel-in-progress: true
 
 jobs:
-
   build:
-
+    name: Build
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v2
-    - name: 'Get latest commit sha'
-      id: get_sha
-      uses: actions/github-script@v6
-      with:
-        script: |
-          const commit = await github.rest.repos.getCommit({
-            owner: 'tindy2013',
-            repo: 'subconverter',
-            ref: `master`
-          })
-          core.setOutput('sha', String(commit.data.sha))
-    - name: Update Version
-      run: |
-        export TZ='Asia/Shanghai'
-        time=$(date "+%Y-%m-%d %H:%M:%S")
-        echo -e "git sha:${{ steps.get_sha.outputs.sha }}\ntime:$time" > version
-    - name: variable mapper
-      id: export
-      uses: kanga333/variable-mapper@master
-      with:
-        key: "${{ github.event_name }}"
-        map: |
-          {
-            "workflow_dispatch": {
-              "message": "${{ github.event.inputs.message }}"
-            },
-            ".*": {
-              "message": "${{ env.message }}"
-            }
-          }
-        export_to: output,env
 
-    - name: Add & Commit
-      uses: EndBug/add-and-commit@v6
-      with:
-        author_name: GitHub Action
-        author_email: noreply@github.com
-        message: ${{ env.message }}
-        add: "-A"
-      env:
-        token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout base
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      # https://github.com/docker/setup-qemu-action
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+      # https://github.com/docker/setup-buildx-action
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Docker login
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        run: |
+          echo "${DOCKER_PASSWORD}" | docker login --username "${DOCKER_USERNAME}" --password-stdin
+      
+      - name: Docker buildx image and push on master branch
+        if: github.ref == 'refs/heads/master'
+        run: |
+          SHA=$(git rev-parse --short HEAD)
+          docker buildx build --build-arg SHA="$SHA" --build-arg THREADS=1 --output "type=image,push=true" --platform=linux/amd64,linux/arm/v7,linux/arm64,linux/386 --tag dugulingping/railway-subconverter-web:latest .
+
+      - name: Replace tag without `v`
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/github-script@v1
+        id: version
+        with:
+          script: |
+            return context.payload.ref.replace(/\/?refs\/tags\/v/, '')
+          result-encoding: string
+
+      - name: Docker buildx image and push on release
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          docker buildx build --output "type=image,push=true" --platform=linux/amd64,linux/arm/v7,linux/arm64,linux/386 --tag dugulingping/railway-subconverter-web:${{steps.version.outputs.result}} .
+          docker buildx build --output "type=image,push=true" --platform=linux/amd64,linux/arm/v7,linux/arm64,linux/386 --tag dugulingping/railway-subconverter-web:latest .
