@@ -1,11 +1,27 @@
-# railway-subconverter
-在Railway.app上搭建subconverter
+# railway-subconverter-web
 
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template?template=https%3A%2F%2Fgithub.com%2Fzhongfly%2Frailway-subconverter&referralCode=y7njpi)
+将后端[subconverter](https://github.com/tindy2013/subconverter)和前端[subwebM](https://github.com/dugulingping/subwebM)组合在一个docker镜像服务里
+
+虽然项目名字叫railway-subconverter-web，但是可以部署在多平台的docker上运行。
+
+家里的X86设备软路由和Nas都能跑，Arm设备只测试了树莓派3B V1.2版本。
+
+## 在Docker上部署
+
+```shell
+sudo docker run -d --restart=always -p 25500:25500 dugulingping/railway-subconverter-web:latest
+curl http://localhost:25500/version
+# 您看到 `subconverter vx.x.x backend` 服务已经成功启动
+# 在web浏览器打开http://your-ip:25500
+```
+
+## 在Railway.app上搭建
+
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template/IMPRc1?referralCode=ZnTvJC)
+
+## 配置
 
 将配置文件等放在files/文件夹内
-
-需要更新sub-web、subconverter时运行相应的action即可
 
 Railway.app可能在国内打开困难，可以自行架设cloudflare worker作为中转代理，同时限制他人对接口的滥用：
 
